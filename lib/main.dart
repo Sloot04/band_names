@@ -12,7 +12,7 @@ class MyApp extends StatelessWidget {
       title: 'Material App',
       initialRoute: 'home',
       routes: {
-        'home' :(_)=> homePage()
+        'home' :(_)=> HomePage()
       },
     );
   }
