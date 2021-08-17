@@ -7,19 +7,31 @@ import 'package:provider/provider.dart';
 import 'package:band_names/models/band.dart';
 import 'package:band_names/services/socket_services.dart';
 
-
 class HomePage extends StatefulWidget {
   @override
   _HomePageState createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  List<Band> bands = [
-    Band(id: '1', name: 'Metallica', votes: 4),
-    Band(id: '2', name: 'Queen', votes: 1),
-    Band(id: '3', name: 'Pescado rabioso', votes: 7),
-    Band(id: '4', name: 'V8', votes: 6),
-  ];
+  List<Band> bands = [];
+
+  @override
+  void initState() {
+    final socketServices = Provider.of<SocketService>(context, listen: false);
+    socketServices.socket.on('active-bands', (payload) {
+      this.bands = (payload as List).map((band) => Band.fromMap(band)).toList();
+
+      setState(() {});
+    });
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    final socketServices = Provider.of<SocketService>(context, listen: false);
+    socketServices.socket.off('active-bands');
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
