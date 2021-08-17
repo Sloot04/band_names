@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:pie_chart/pie_chart.dart';
 import 'package:provider/provider.dart';
 
 import 'package:band_names/models/band.dart';
@@ -18,12 +19,13 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     final socketServices = Provider.of<SocketService>(context, listen: false);
-    socketServices.socket.on('active-bands', (payload) {
-      this.bands = (payload as List).map((band) => Band.fromMap(band)).toList();
-
-      setState(() {});
-    });
+    socketServices.socket.on('active-bands', _handleActiveBands);
     super.initState();
+  }
+
+  _handleActiveBands(dynamic payload) {
+    this.bands = (payload as List).map((band) => Band.fromMap(band)).toList();
+    setState(() {});
   }
 
   @override
@@ -54,9 +56,16 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      body: ListView.builder(
-        itemCount: bands.length,
-        itemBuilder: (context, i) => _bandTile(bands[i]),
+      body: Column(
+        children: [
+          _showGraph(),
+          Expanded(
+            child: ListView.builder(
+              itemCount: bands.length,
+              itemBuilder: (context, i) => _bandTile(bands[i]),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: addNewBand,
@@ -72,9 +81,8 @@ class _HomePageState extends State<HomePage> {
     return Dismissible(
       key: Key(band.id),
       direction: DismissDirection.startToEnd,
-      onDismissed: (DismissDirection dismiss) {
-        socketService.socket.emit('delete-band', {'id': band.id});
-      },
+      onDismissed: (DismissDirection dismiss) =>
+          socketService.socket.emit('delete-band', {'id': band.id}),
       background: Container(
         padding: EdgeInsets.only(left: 8.0),
         color: Colors.red.withOpacity(0.8),
@@ -95,9 +103,7 @@ class _HomePageState extends State<HomePage> {
           '${band.votes}',
           style: TextStyle(fontSize: 20),
         ),
-        onTap: () {
-          socketService.socket.emit('vote-band', {'id': band.id});
-        },
+        onTap: () => socketService.socket.emit('vote-band', {'id': band.id}),
       ),
     );
   }
@@ -108,41 +114,37 @@ class _HomePageState extends State<HomePage> {
     if (Platform.isAndroid) {
       return showDialog(
           context: context,
-          builder: (context) {
-            return AlertDialog(
-              title: Text('New band name'),
-              content: TextField(controller: textController),
-              actions: [
-                MaterialButton(
-                  onPressed: () => addBandToList(textController.text),
-                  child: Text('Add'),
-                  elevation: 5,
-                  textColor: Colors.blue,
-                )
-              ],
-            );
-          });
+          builder: (_) => AlertDialog(
+                title: Text('New band name'),
+                content: TextField(controller: textController),
+                actions: [
+                  MaterialButton(
+                    onPressed: () => addBandToList(textController.text),
+                    child: Text('Add'),
+                    elevation: 5,
+                    textColor: Colors.blue,
+                  )
+                ],
+              ));
     }
     showCupertinoDialog(
         context: context,
-        builder: (_) {
-          return CupertinoAlertDialog(
-            title: Text('New ban name'),
-            content: CupertinoTextField(controller: textController),
-            actions: [
-              CupertinoDialogAction(
-                child: Text('add'),
-                isDefaultAction: true,
-                onPressed: () => addBandToList(textController.text),
-              ),
-              CupertinoDialogAction(
-                child: Text('Dismiss'),
-                isDestructiveAction: true,
-                onPressed: () => Navigator.pop(context),
-              )
-            ],
-          );
-        });
+        builder: (_) => CupertinoAlertDialog(
+              title: Text('New ban name'),
+              content: CupertinoTextField(controller: textController),
+              actions: [
+                CupertinoDialogAction(
+                  child: Text('add'),
+                  isDefaultAction: true,
+                  onPressed: () => addBandToList(textController.text),
+                ),
+                CupertinoDialogAction(
+                  child: Text('Dismiss'),
+                  isDestructiveAction: true,
+                  onPressed: () => Navigator.pop(context),
+                )
+              ],
+            ));
   }
 
   void addBandToList(String name) {
@@ -151,5 +153,55 @@ class _HomePageState extends State<HomePage> {
       socketServices.socket.emit('add-band', {'name': name});
     }
     Navigator.pop(context);
+  }
+
+  // Mostrar gáfica
+
+  Widget _showGraph() {
+    Map<String, double> dataMap = new Map();
+    bands.forEach(
+        (band) => dataMap.putIfAbsent(band.name, () => band.votes.toDouble()));
+
+    final List<Color> colorList = [
+      Colors.blue.shade50,
+      Colors.blue.shade200,
+      Colors.red.shade100,
+      Colors.red.shade200,
+      Colors.yellow.shade50,
+      Colors.yellow.shade200,
+      Colors.green.shade50,
+      Colors.green.shade200,
+    ];
+    return Container(
+        padding: EdgeInsets.symmetric(vertical: 10),
+        width: double.infinity,
+        height: 200,
+        child: PieChart(
+          dataMap: dataMap,
+          animationDuration: Duration(milliseconds: 800),
+          // chartLegendSpacing: 32,
+          chartRadius: MediaQuery.of(context).size.width / 3.2,
+          colorList: colorList,
+          initialAngleInDegree: 0,
+          chartType: ChartType.ring,
+          ringStrokeWidth: 32,
+          // centerText: "HYBRID",
+          legendOptions: LegendOptions(
+            showLegendsInRow: false,
+            legendPosition: LegendPosition.right,
+            showLegends: true,
+            // legendShape: _BoxShape.circle,
+            legendTextStyle: TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          chartValuesOptions: ChartValuesOptions(
+            showChartValueBackground: false,
+            showChartValues: true,
+            showChartValuesInPercentage: false,
+            showChartValuesOutside: true,
+            decimalPlaces: 0,
+          ),
+        ));
   }
 }
