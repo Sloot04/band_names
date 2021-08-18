@@ -172,6 +172,9 @@ class _HomePageState extends State<HomePage> {
       Colors.green.shade50,
       Colors.green.shade200,
     ];
+    if (dataMap.isEmpty) {
+      return Container(height: 0, width: 0);
+    }
     return Container(
         padding: EdgeInsets.symmetric(vertical: 10),
         width: double.infinity,
